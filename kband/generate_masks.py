@@ -62,38 +62,33 @@ def gen_masks(config, mask_type, undersample, one_dim=False):
 
 def get_args():
     parser = OptionParser()
-    parser.add_option(
-        "-c",
-        "--config",
-        dest="config",
-        default="knee",
-        help="Which default config to create masks with, knee or brain or other.",
-    )
-    parser.add_option(
-        "-t",
-        "--type",
-        dest="type",
-        default="SSDU",
-        help="Which masking type: kband, SSDU, square, vertical, or supervised",
-    )
-    parser.add_option(
-        "-u",
-        "--undersampling",
-        dest="undersampling",
-        default="1d",
-        help="Which undersampling method: 2d, 1d, or radial.",
-    )
+    parser.add_option( "-c", "--config", dest="config", default="brain", 
+                    help="Which default config to create masks with, knee or brain or other.")
+    parser.add_option( "-t", "--type", dest="type", default="SSDU", 
+                    help="Which masking type: kband, SSDU, square, vertical, or supervised")
+    parser.add_option( "-u", "--undersampling", dest="undersampling", default="1d", 
+                    help="Which undersampling method: 2d, 1d, or radial.")
+    parser.add_option("--output", dest="output", default="/home/orel/projects/K-band/data/brain_multicoil_target/", 
+                    help="Output dir contains masks (h5 format)")
+    parser.add_option("--n_t_data", dest="n_t_data", default=1600, type=int, 
+                    help="number of train masks.")
+    parser.add_option("--n_v_data", dest="n_v_data", default=400, type=int,
+                    help="number of validation masks.")
+    parser.add_option("--n_i_data", dest="n_i_data", default=400, type=int,
+                    help="number of inference masks")
     (options, args) = parser.parse_args()
     return options
 
 
 if __name__ == "__main__":
+    args = get_args()
+
     # Knee and Brain data configs from FastMRI
     fastMRI_knee_config = {
-        "output": "/mikRAID/fredwang/knee_data/",
-        "n_t_data": 1600,
-        "n_v_data": 400,
-        "n_i_data": 400,
+        "output": args.output,
+        "n_t_data": args.n_t_data,
+        "n_v_data": args.n_v_data,
+        "n_i_data": args.n_i_data,
         "R": 4,
         "R_band": 4,
         "H": 400,
@@ -103,10 +98,10 @@ if __name__ == "__main__":
         "calib": 20,
     }
     fastMRI_brain_config = {
-        "output": "/mikRAID/han2019/brain_data_paper/",
-        "n_t_data": 1600,
-        "n_v_data": 400,
-        "n_i_data": 400,
+        "output": args.output,
+        "n_t_data": args.n_t_data,
+        "n_v_data": args.n_v_data,
+        "n_i_data": args.n_i_data,
         "R": 4,
         "R_band": 4,
         "H": 320,
@@ -129,7 +124,7 @@ if __name__ == "__main__":
         "calib": 0,
     }
 
-    args = get_args()
+
     if args.config == "knee":
         config = fastMRI_knee_config
     elif args.config == "brain":

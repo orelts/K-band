@@ -40,12 +40,12 @@ def create_input(input_dir, num_samples, config, data_type, is_test=False):
         dtype=np.complex64,
     )
 
-    if not is_test:
-        # Create vardens/k-band masks and convert data into deepinpy format.
-        for i in range(num_samples):
-            # Load images, k-space and sensitivity maps from fastMRI data.
-            print("Preparing", data_files[i])
-            h5_data = h5py.File(os.path.join(input_dir, data_files[i]), "r")
+    # Create vardens/k-band masks and convert data into deepinpy format.
+    for i in range(num_samples):
+        # Load images, k-space and sensitivity maps from fastMRI data.
+        print("Preparing", data_files[i])
+        h5_data = h5py.File(os.path.join(input_dir, data_files[i]), "r")
+        if not is_test:
             n_coils = h5_data["kspace"].shape[0]
             orig_H = h5_data["kspace"].shape[1]
             orig_W = h5_data["kspace"].shape[2]
@@ -88,39 +88,47 @@ def create_input(input_dir, num_samples, config, data_type, is_test=False):
 
 def get_args():
     parser = OptionParser()
-    parser.add_option(
-        "-c",
-        "--config",
-        dest="config",
-        default="knee",
-        help="Which fastMRI dataset to create data from, knee or brain or other.",
-    )
+    parser.add_option( "-c", "--config", dest="config", default="brain", 
+                      help="Which fastMRI dataset to create data from, knee or brain or other.")
+    parser.add_option("--train", dest="load_train", default="/home/orel/projects/K-band/data/brain_multicoil_train_processed", 
+                      help="Folder directory contains processed(after generate_maps) train dataset (h5 format)")
+    parser.add_option("--test", dest="load_test", default="/home/orel/projects/K-band/data/brain_multicoil_test_processed", 
+                      help="Folder directory contains processed(after generate_maps) test dataset (h5 format)")
+    parser.add_option("--target", dest="target", default="/home/orel/projects/K-band/data/brain_multicoil_target/", 
+                      help="Folder directory contains target data (h5 format)")
+    parser.add_option("--num_samples_train", dest="num_samples_train", default=2000, type=int, 
+                      help="number of train samples to create. < num of files")
+    parser.add_option("--num_samples_test", dest="num_samples_test", default=400, type=int,
+                    help="number of test samples to create. < num of files")
+
     (options, args) = parser.parse_args()
     return options
 
 
 if __name__ == "__main__":
+    args = get_args()
+
     # The ratio of training samples in the whole dataset.
     # (1 - train_proportion) is the ratio of validation samples in the whole dataset.
     train_proportion = 0.8
 
     # Knee and Brain data configs from FastMRI
     fastMRI_brain_config = {
-        "load_train": "/mikRAID/fredwang/full_brain_data/multicoil_train_processed",
-        "load_test": "/mikRAID/fredwang/full_brain_data/multicoil_test_processed",
-        "target": "/mikRAID/han2019/brain_data_paper",
-        "num_samples_train": 2000,
-        "num_samples_test": 400,
+        "load_train": args.load_train,
+        "load_test": args.load_test,
+        "target": args.target,
+        "num_samples_train": args.num_samples_train,
+        "num_samples_test": args.num_samples_test,
         "height": 320,
         "width": 230,
         "coils": 16,
     }
     fastMRI_knee_config = {
-        "load_train": "/mikRAID/fredwang/full_knee_data/multicoil_train_processed",
-        "load_test": "/mikRAID/fredwang/full_knee_data/multicoil_test_processed",
-        "target": "/mikRAID/fredwang/knee_data",
-        "num_samples_train": 2000,
-        "num_samples_test": 400,
+        "load_train": args.load_train,
+        "load_test": args.load_test,
+        "target": args.target,
+        "num_samples_train": args.num_samples_train,
+        "num_samples_test": args.num_samples_test,
         "height": 400,
         "width": 300,
         "coils": 15,
@@ -137,7 +145,7 @@ if __name__ == "__main__":
         "coils": 0,
     }
 
-    args = get_args()
+
     if args.config == "knee":
         config = fastMRI_knee_config
     elif args.config == "brain":

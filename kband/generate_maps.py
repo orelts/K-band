@@ -85,37 +85,16 @@ def create_maps(input_dir, output_dir, config):
 def get_args():
     parser = OptionParser()
     # Will be split into train/validation
-    parser.add_option(
-        "--train",
-        dest="load_train",
-        default="/mikQNAP/NYU_knee_data/multicoil_train",
-        help="Folder directory contains train dataset (h5 format)",
-    )
-    parser.add_option(
-        "--test",
-        dest="load_test",
-        default="/mikQNAP/NYU_knee_data/multicoil_val",
-        help="Folder directory contains test dataset (h5 format)",
-    )
-    parser.add_option(
-        "--train_out",
-        dest="target_train",
-        default="/mikRAID/fredwang/full_knee_data/multicoil_train_processed",
-        help="Target folder directory for processed train data",
-    )
-    parser.add_option(
-        "--test_out",
-        dest="target_test",
-        default="/mikRAID/fredwang/full_knee_data/multicoil_test_processed",
-        help="Target folder directory for processed test data",
-    )
-    parser.add_option(
-        "-d",
-        "--data",
-        dest="data",
-        default="knee",
-        help="Which dataset to create sensitivity maps, fastMRI knee, fastMRI brain or other",
-    )
+    parser.add_option("--train", dest="load_train", default="/home/orel/projects/K-band/data/multicoil_train", 
+                      help="Folder directory contains train dataset (h5 format)")
+    parser.add_option("--test", dest="load_test", default="/home/orel/projects/K-band/data/multicoil_val", 
+                      help="Folder directory contains test dataset (h5 format)")
+    parser.add_option( "--train_out", dest="target_train", default="/home/orel/projects/K-band/data/brain_multicoil_train_processed", 
+                      help="Target folder directory for processed train data" )
+    parser.add_option( "--test_out", dest="target_test", default="/home/orel/projects/K-band/data/brain_multicoil_test_processed", 
+                      help="Target folder directory for processed test data")
+    parser.add_option("-d", "--data", dest="data", default="brain", 
+                      help="Which dataset to create sensitivity maps, fastMRI knee, fastMRI brain or other")
     (options, args) = parser.parse_args()
     return options
 
