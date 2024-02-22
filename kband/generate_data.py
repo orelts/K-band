@@ -25,20 +25,17 @@ def create_input(input_dir, num_samples, config, data_type, is_test=False):
     data_files.sort()
     assert len(data_files) >= num_samples
 
-    # Initialize all arrays we'll need. Images are [slices, X, Y], while sensitivity maps and k-space are [slices, coils, X, Y].
-    imgs = np.zeros(
-        (num_samples, config["height"], config["width"]), dtype=np.complex64
-    )
+    if is_test:
+        # Getting dimensions for arrays from the file (not cropping if is_test)
+        h5_data = h5py.File(os.path.join(input_dir, data_files[0]), "r")
+        config["height"] = h5_data["kspace"].shape[1]
+        config["width"] = h5_data["kspace"].shape[2]
+        h5_data.close
 
-    # Sensitivity maps.
-    maps = np.zeros(
-        (num_samples, config["coils"], config["height"], config["width"]),
-        dtype=np.complex64,
-    )
-    ksp = np.zeros(
-        (num_samples, config["coils"], config["height"], config["width"]),
-        dtype=np.complex64,
-    )
+    # Initialize all arrays we'll need. Images are [slices, X, Y], while sensitivity maps and k-space are [slices, coils, X, Y].
+    imgs = np.zeros( (num_samples, config["height"], config["width"]), dtype=np.complex64 )
+    maps = np.zeros( (num_samples, config["coils"], config["height"], config["width"]), dtype=np.complex64, )
+    ksp = np.zeros( (num_samples, config["coils"], config["height"], config["width"]), dtype=np.complex64, )
 
     # Create vardens/k-band masks and convert data into deepinpy format.
     for i in range(num_samples):
@@ -75,13 +72,15 @@ def create_input(input_dir, num_samples, config, data_type, is_test=False):
                         mid_W - (config["width"] // 2) : mid_W + (config["width"] // 2),
                     ]
                 )
-            h5_data.close()
+
 
             print(i + 1, "out of", num_samples, "samples done")
         else:
-            imgs = h5_data["target"][:]
-            maps = h5_data["sensmaps"][:]
-            ksp = h5_data["kspace"][:]
+            imgs[i] = h5_data["target"]
+            maps[i] = h5_data["sensmaps"]
+            ksp[i] = h5_data["kspace"]
+
+        h5_data.close()
 
     return imgs, maps, ksp
 
