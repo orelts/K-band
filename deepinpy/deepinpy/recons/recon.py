@@ -379,6 +379,8 @@ class Recon(pl.LightningModule):
         idx = utils.itemize(idx)
         imgs = data["imgs"]
         ksp_cc = data["out"]
+        mask = data["masks"]
+        band_mask = data["loss_masks"]
 
         self.batch(data)
 
@@ -392,9 +394,9 @@ class Recon(pl.LightningModule):
             self.current_epoch % self.hparams.save_every_N_epochs == 0
             or self.current_epoch == self.hparams.num_epochs - 1
         ):
-  
-            logged_images = [torch.abs(imgs), torch.abs(x_hat)]
-            self.logger.log_image(step=self.global_step, key="Samples", images=logged_images, caption=['Ground Truth', 'Reconstruction'])
+
+            logged_images = [torch.abs(imgs), torch.abs(ksp_cc), torch.abs(x_hat), torch.abs(mask), torch.abs(band_mask)]
+            self.logger.log_image(step=self.global_step, key="Training", images=logged_images, caption=['Ground Truth', "Input", 'Reconstruction', 'Mask (Band+VD)', 'Band'])
 
 
         if self.hparams.self_supervised:

@@ -28,14 +28,16 @@ import numpy as np
 def main_train(args, gpu_ids=None):
     if args.hyperopt:
         time.sleep(random.random())  # used to avoid race conditions with parallel jobs
-    wandb_logger = WandbLogger(project='kband', save_dir=args.logdir, name=args.name, log_model="all")
-    wandb_logger.log_hyperparams(args) 
     save_path = "./{}/{}/{}".format(
         args.logdir, args.name, time.strftime("%Y-%m-%d_%H-%M", time.localtime())
     )
     print("save path is", save_path)
     checkpoint_path = "{}/checkpoints".format(save_path)
     pathlib.Path(checkpoint_path).mkdir(parents=True, exist_ok=True)
+    
+    wandb_logger = WandbLogger(project='kband', save_dir=save_path, name=args.name, log_model="all")
+    wandb_logger.log_hyperparams(args) 
+
     if args.save_all_checkpoints:
         save_top_k = -1
     else:
@@ -78,7 +80,7 @@ def main_train(args, gpu_ids=None):
         max_epochs=args.num_epochs,
         gpus=gpus,
         logger=wandb_logger,
-        checkpoint_callback=checkpoint_callback,
+        callbacks=[checkpoint_callback],
         accelerator=accelerator,
         accumulate_grad_batches=args.num_accumulate,
         progress_bar_refresh_rate=-1,
@@ -108,7 +110,7 @@ def main_train(args, gpu_ids=None):
                 )
                 eval_loader = torch.utils.data.DataLoader(
                     eval_data,
-                    batch_size=args.num_inference_data_sets,
+                    batch_size=1,
                     shuffle=False,
                     num_workers=0,
                     drop_last=True,
@@ -116,12 +118,8 @@ def main_train(args, gpu_ids=None):
                 for batch in eval_loader:
                     M.batch(batch[1])
                     recon_imgs = M(batch[1]["out"])
-                    print(recon_imgs.shape)
-                    np.save(
-                        args.masks_train_file + "_" + args.loss_function + ".npy",
-                        recon_imgs,
-                    )
-
+                    gt = torch.abs(batch[1]["imgs"])
+                    wandb_logger.log_image(key="Inference", images=[gt, torch.abs(recon_imgs)], caption=['Ground Truth','Reconstruction'])
 
 if __name__ == "__main__":
     usage_str = "usage: %(prog)s [options]"
