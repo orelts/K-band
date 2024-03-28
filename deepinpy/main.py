@@ -2,7 +2,7 @@
 
 from test_tube import HyperOptArgumentParser
 from pytorch_lightning import Trainer
-from pytorch_lightning.loggers import TestTubeLogger
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from pytorch_lightning import seed_everything
@@ -28,17 +28,10 @@ import numpy as np
 def main_train(args, gpu_ids=None):
     if args.hyperopt:
         time.sleep(random.random())  # used to avoid race conditions with parallel jobs
-    tt_logger = TestTubeLogger(
-        save_dir=args.logdir,
-        name=args.name,
-        debug=False,
-        create_git_tag=False,
-        version=args.version,
-        log_graph=False,
-    )
-    tt_logger.log_hyperparams(args)
-    save_path = "./{}/{}/version_{}".format(
-        args.logdir, tt_logger.name, tt_logger.version
+    wandb_logger = WandbLogger(project='kband', save_dir=args.logdir, name=args.name, log_model="all")
+    wandb_logger.log_hyperparams(args) 
+    save_path = "./{}/{}/{}".format(
+        args.logdir, args.name, time.strftime("%Y-%m-%d_%H-%M", time.localtime())
     )
     print("save path is", save_path)
     checkpoint_path = "{}/checkpoints".format(save_path)
@@ -84,11 +77,11 @@ def main_train(args, gpu_ids=None):
     trainer = Trainer(
         max_epochs=args.num_epochs,
         gpus=gpus,
-        logger=tt_logger,
+        logger=wandb_logger,
         checkpoint_callback=checkpoint_callback,
         accelerator=accelerator,
         accumulate_grad_batches=args.num_accumulate,
-        progress_bar_refresh_rate=1,
+        progress_bar_refresh_rate=-1,
         gradient_clip_val=args.clip_grads,
     )
     trainer.fit(M)

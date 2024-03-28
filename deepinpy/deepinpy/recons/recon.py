@@ -59,7 +59,7 @@ def ifft2c(_tensor):
     return torch.fft.ifftshift(_tensor, dim=(-2, -1))
 
 
-def generate_W_mask(height=400, width=300, angles=tuple(range(180)), R_band=6.0):
+def generate_W_mask(height=320, width=230, angles=tuple(range(180)), R_band=6.0):
     """Generates a density compensation mask, assuming a uniform distribution over k-band angles provided.
     Method: 
         We initialize a zeros mask, then iterative over all possible bands and add ones in all the pixels that are included in the bands.
@@ -360,16 +360,8 @@ class Recon(pl.LightningModule):
         Args:
             batch_parts (Tensor): concatenation of validation_step outputs over all validation data.
         """
-        self.logger.experiment.add_scalar(
-            "validation_loss",
-            torch.mean(torch.stack([i[0] for i in batch_parts])),
-            self.global_step,
-        )
-        self.logger.experiment.add_scalar(
-            "validation_NRMSE",
-            torch.mean(torch.stack([i[1] for i in batch_parts])),
-            self.global_step,
-        )
+        self.logger.log_metrics({"validation_loss": torch.mean(torch.stack([i[0] for i in batch_parts])), 
+                                 "validation_NRMSE": torch.mean(torch.stack([i[1] for i in batch_parts]))}, step=self.global_step)
 
     # FIXME: batch_nb parameter appears unused.
     def training_step(self, batch, batch_nb):
@@ -390,77 +382,20 @@ class Recon(pl.LightningModule):
 
         self.batch(data)
 
+        print("------Training Step:")
+        print(f"---------------epoch:{self.current_epoch}")
+        print(f"---------------idx:{idx}")
+        print(f"---------------training_step:{self.global_step}")
         x_hat = self.forward(ksp_cc)
 
         if self.logger and (
             self.current_epoch % self.hparams.save_every_N_epochs == 0
             or self.current_epoch == self.hparams.num_epochs - 1
         ):
-            _b = ksp_cc.shape[0]
-            if _b == 1 and idx == 0:
-                _idx = 0
-            elif _b > 1 and 0 in idx:
-                _idx = idx.index(0)
-            else:
-                _idx = None
-            if _idx is not None:
-                with torch.no_grad():
-                    if self.x_adj is None:
-                        x_adj = self.A.adjoint(ksp_cc)
-                    else:
-                        x_adj = self.x_adj
+  
+            logged_images = [torch.abs(imgs), torch.abs(x_hat)]
+            self.logger.log_image(step=self.global_step, key="Samples", images=logged_images, caption=['Ground Truth', 'Reconstruction'])
 
-                    _x_hat = utils.t2n2(x_hat[_idx, ...])
-                    _x_gt = utils.t2n2(imgs[_idx, ...])
-                    _x_adj = utils.t2n2(x_adj[_idx, ...])
-
-                    if len(_x_hat.shape) > 2:
-                        _d = tuple(range(len(_x_hat.shape) - 2))
-                        _x_hat_rss = np.linalg.norm(_x_hat, axis=_d)
-                        _x_gt_rss = np.linalg.norm(_x_gt, axis=_d)
-                        _x_adj_rss = np.linalg.norm(_x_adj, axis=_d)
-
-                        myim = torch.tensor(
-                            np.stack((_x_adj_rss, _x_hat_rss, _x_gt_rss), axis=0)
-                        )[:, None, ...]
-                        grid = make_grid(
-                            myim, scale_each=True, normalize=True, nrow=8, pad_value=10
-                        )
-                        self.logger.experiment.add_image(
-                            "3_train_prediction_rss", grid, self.current_epoch
-                        )
-
-                        while len(_x_hat.shape) > 2:
-                            _x_hat = _x_hat[0, ...]
-                            _x_gt = _x_gt[0, ...]
-                            _x_adj = _x_adj[0, ...]
-
-                    myim = torch.tensor(
-                        np.stack((np.abs(_x_hat), np.angle(_x_hat)), axis=0)
-                    )[:, None, ...]
-                    grid = make_grid(
-                        myim, scale_each=True, normalize=True, nrow=8, pad_value=10
-                    )
-                    self.logger.experiment.add_image(
-                        "2_train_prediction", grid, self.current_epoch
-                    )
-
-                    if self.current_epoch == 0:
-                        myim = torch.tensor(
-                            np.stack((np.abs(_x_gt), np.angle(_x_gt)), axis=0)
-                        )[:, None, ...]
-                        grid = make_grid(
-                            myim, scale_each=True, normalize=True, nrow=8, pad_value=10
-                        )
-                        self.logger.experiment.add_image("1_ground_truth", grid, 0)
-
-                        myim = torch.tensor(
-                            np.stack((np.abs(_x_adj), np.angle(_x_adj)), axis=0)
-                        )[:, None, ...]
-                        grid = make_grid(
-                            myim, scale_each=True, normalize=True, nrow=8, pad_value=10
-                        )
-                        self.logger.experiment.add_image("0_input", grid, 0)
 
         if self.hparams.self_supervised:
             pred = self.A.forward(x_hat)
@@ -494,7 +429,6 @@ class Recon(pl.LightningModule):
             "nrmse": _nrmse,
             "val_loss": 0,
         }
-
         # FIXME: let the user specify this list
         log_dict = self.log_metadata(log_dict, "num_cg", fun=np.max)
         keys_list = ["mean_residual_norm", "mean_eps"]
@@ -502,8 +436,7 @@ class Recon(pl.LightningModule):
             log_dict = self.log_metadata(log_dict, key)
 
         if self.logger:
-            for key in log_dict.keys():
-                self.logger.experiment.add_scalar(key, log_dict[key], self.global_step)
+             self.logger.log_metrics(log_dict)
 
         self.log_dict = log_dict
         return loss
