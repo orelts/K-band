@@ -34,7 +34,7 @@ def main_train(args, gpu_ids=None):
     print("save path is", save_path)
     checkpoint_path = "{}/checkpoints".format(save_path)
     pathlib.Path(checkpoint_path).mkdir(parents=True, exist_ok=True)
-    
+
     wandb_logger = WandbLogger(project='kband', save_dir=save_path, name=args.name, log_model="all")
     wandb_logger.log_hyperparams(args) 
 
@@ -118,8 +118,15 @@ def main_train(args, gpu_ids=None):
                 for batch in eval_loader:
                     M.batch(batch[1])
                     recon_imgs = M(batch[1]["out"])
+
                     gt = torch.abs(batch[1]["imgs"])
-                    wandb_logger.log_image(key="Inference", images=[gt, torch.abs(recon_imgs)], caption=['Ground Truth','Reconstruction'])
+                    mask = torch.abs(batch[1]["masks"])
+                    band_mask = torch.abs(batch[1]["loss_masks"])
+                    ksp_cc = torch.abs(batch[1]["out"])
+
+                    logged_images = [torch.abs(gt), torch.abs(ksp_cc), torch.abs(recon_imgs), torch.abs(mask)]
+                    wandb_logger.log_image(key="Inference", images=logged_images, caption=['Ground Truth', "Input", 'Reconstruction', 'Mask'])
+
 
 if __name__ == "__main__":
     usage_str = "usage: %(prog)s [options]"
