@@ -148,7 +148,7 @@ def main_train(args, gpu_ids=None):
                 }
                 artifact_path =  save_path + "/" + pathlib.Path(args.masks_train_file).stem + "_" + args.loss_function + ".npz"
 
-                np.savez(artifact_path, results)
+                np.savez(artifact_path, **results)
 
                 # Log the artifact using wandb_logger
                 wandb_logger.experiment.log_artifact(artifact_path, name="Inference_Reconstruction")
