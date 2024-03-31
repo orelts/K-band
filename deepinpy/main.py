@@ -11,6 +11,8 @@ import pathlib
 import argparse
 import time
 import sys
+import random
+import string
 
 from deepinpy.recons import CGSenseRecon, MoDLRecon, ResNetRecon, DeepBasisPursuitRecon
 from deepinpy.forwards import MultiChannelMRIDataset
@@ -28,14 +30,17 @@ import numpy as np
 def main_train(args, gpu_ids=None):
     if args.hyperopt:
         time.sleep(random.random())  # used to avoid race conditions with parallel jobs
+
+    run_id = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
+
     save_path = "./{}/{}/{}".format(
-        args.logdir, args.name, time.strftime("%Y-%m-%d_%H-%M", time.localtime())
+        args.logdir, args.name, run_id
     )
     print("save path is", save_path)
     checkpoint_path = "{}/checkpoints".format(save_path)
     pathlib.Path(checkpoint_path).mkdir(parents=True, exist_ok=True)
 
-    wandb_logger = WandbLogger(project='kband', save_dir=save_path, name=args.name, log_model="all")
+    wandb_logger = WandbLogger(project='kband', save_dir=save_path, name=args.name, log_model="all", id=run_id)
     wandb_logger.log_hyperparams(args) 
 
     if args.save_all_checkpoints:
@@ -117,6 +122,9 @@ def main_train(args, gpu_ids=None):
                 )
 
                 recon_imgs_array = []
+                gt_imgs = []
+                masks = []
+                inputs = []
                 for batch in eval_loader:
                     M.batch(batch[1])
                     recon_imgs = M(batch[1]["out"])
@@ -128,14 +136,23 @@ def main_train(args, gpu_ids=None):
                     wandb_logger.log_image(key="Inference", images=logged_images, caption=['Ground Truth', "Input", 'Reconstruction', 'Mask'])
 
                     recon_imgs_array.append(recon_imgs)
+                    gt_imgs.append(gt)
+                    masks.append(mask)
+                    inputs.append(ksp_cc)
+                
+                results = {
+                    "ground_truth": torch.cat(gt_imgs, dim=0),
+                    "reconstruction": torch.cat(recon_imgs_array, dim=0),
+                    "masks": torch.cat(masks, dim=0),
+                    "inputs": torch.cat(inputs, dim=0),
+                }
+                artifact_path =  save_path + "/" + pathlib.Path(args.masks_train_file).stem + "_" + args.loss_function + ".npz"
 
-                recon_imgs_array = torch.cat(recon_imgs_array, dim=0)
-                artifact_path =  save_path + "/" + pathlib.Path(args.masks_train_file).stem + "_" + args.loss_function + ".npy"
-
-                np.save(artifact_path, recon_imgs_array)
+                np.savez(artifact_path, results)
 
                 # Log the artifact using wandb_logger
                 wandb_logger.experiment.log_artifact(artifact_path, name="Inference_Reconstruction")
+
 
 if __name__ == "__main__":
     usage_str = "usage: %(prog)s [options]"
