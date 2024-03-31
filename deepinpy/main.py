@@ -11,7 +11,6 @@ import pathlib
 import argparse
 import time
 import sys
-import random
 import string
 
 from deepinpy.recons import CGSenseRecon, MoDLRecon, ResNetRecon, DeepBasisPursuitRecon
@@ -31,16 +30,14 @@ def main_train(args, gpu_ids=None):
     if args.hyperopt:
         time.sleep(random.random())  # used to avoid race conditions with parallel jobs
 
-    run_id = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
-
     save_path = "./{}/{}/{}".format(
-        args.logdir, args.name, run_id
+        args.logdir, args.name, args.run_id
     )
     print("save path is", save_path)
     checkpoint_path = "{}/checkpoints".format(save_path)
     pathlib.Path(checkpoint_path).mkdir(parents=True, exist_ok=True)
 
-    wandb_logger = WandbLogger(project='kband', save_dir=save_path, name=args.name, log_model="all", id=run_id)
+    wandb_logger = WandbLogger(project='kband', save_dir=save_path, name=args.name, log_model="all", id=args.run_id)
     wandb_logger.log_hyperparams(args) 
 
     if args.save_all_checkpoints:
@@ -585,9 +582,21 @@ if __name__ == "__main__":
         help="Work with adjoint of data",
         default=True,
     )
+    parser.add_argument(
+        "--run_id",
+        action="store",
+        dest="run_id",
+        type=str,
+        help="Logger run id",
+        default=None,
+    )
     parser.json_config("--config", default=None)
 
     args = parser.parse_args()
+
+    if args.run_id is None:
+        args.run_id = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
+    print(f"run id is {args.run_id}")
 
     torch.manual_seed(args.random_seed)
     numpy.random.seed(args.random_seed)
