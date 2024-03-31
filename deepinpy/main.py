@@ -115,18 +115,27 @@ def main_train(args, gpu_ids=None):
                     num_workers=0,
                     drop_last=True,
                 )
+
+                recon_imgs_array = []
                 for batch in eval_loader:
                     M.batch(batch[1])
                     recon_imgs = M(batch[1]["out"])
-
                     gt = torch.abs(batch[1]["imgs"])
                     mask = torch.abs(batch[1]["masks"])
-                    band_mask = torch.abs(batch[1]["loss_masks"])
                     ksp_cc = torch.abs(batch[1]["out"])
 
                     logged_images = [torch.abs(gt), torch.abs(ksp_cc), torch.abs(recon_imgs), torch.abs(mask)]
                     wandb_logger.log_image(key="Inference", images=logged_images, caption=['Ground Truth', "Input", 'Reconstruction', 'Mask'])
 
+                    recon_imgs_array.append(recon_imgs)
+
+                recon_imgs_array = torch.cat(recon_imgs_array, dim=0)
+                artifact_path =  save_path + "/" + pathlib.Path(args.masks_train_file).stem + "_" + args.loss_function + ".npy"
+
+                np.save(artifact_path, recon_imgs_array)
+
+                # Log the artifact using wandb_logger
+                wandb_logger.experiment.log_artifact(artifact_path, name="Inference_Reconstruction")
 
 if __name__ == "__main__":
     usage_str = "usage: %(prog)s [options]"
