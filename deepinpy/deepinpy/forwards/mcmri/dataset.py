@@ -4,6 +4,7 @@
 import torch.utils.data
 import numpy as np
 import scipy.fftpack
+from scipy.ndimage import rotate
 import h5py
 import pathlib
 
@@ -36,7 +37,7 @@ class MultiChannelMRIDataset(torch.utils.data.Dataset):
 
     """
 
-    def __init__(self, data_file, masks_file, stdev=.01, num_data_sets=None, adjoint_data=True, preload=False, id=None, clear_cache=False, cache_data=False, gen_masks=False, scale_data=False, fully_sampled=False, data_idx=None, inverse_crime=False, noncart=False):
+    def __init__(self, data_file, masks_file, stdev=.01, num_data_sets=None, adjoint_data=True, preload=False, id=None, clear_cache=False, cache_data=False, gen_masks=False, scale_data=False, fully_sampled=False, data_idx=None, inverse_crime=False, noncart=False, vertical_rotate=False):
 
         self.data_file = data_file
         self.masks_file = masks_file
@@ -52,6 +53,8 @@ class MultiChannelMRIDataset(torch.utils.data.Dataset):
         self.scale_data = scale_data
         self.inverse_crime = inverse_crime
         self.noncart = noncart
+        self.vertical_rotate = vertical_rotate
+
 
         if self.data_idx is not None:
             self.num_data_sets = 1
@@ -92,7 +95,7 @@ class MultiChannelMRIDataset(torch.utils.data.Dataset):
         #         imgs, maps, masks, out, loss_masks = self._load_data(idx)
         #         save_data_cached(data_file, imgs, maps, masks, out, loss_masks)
         # else:
-        imgs, maps, masks, out, loss_masks = self._load_data(idx)
+        imgs, maps, masks, out, loss_masks, rotation_angle = self._load_data(idx)
 
         if imgs.shape[0] == 1:
             imgs = imgs.squeeze(0)
@@ -106,12 +109,17 @@ class MultiChannelMRIDataset(torch.utils.data.Dataset):
                 'maps': maps.astype(np.complex64),
                 'masks': masks.astype(np.float32),
                 'loss_masks': loss_masks.astype(np.float32),
-                'out': out.astype(np.complex64)
+                'out': out.astype(np.complex64),
+                'rotation_angle': rotation_angle
                 }
 
         return idx, data
 
     def _load_data(self, idx):
+        
+        # rotation_angle = random.randint(0, 180)  # Randomly choose an angle from 0 to 180 degrees
+        rotation_angle = 90  # Randomly choose an angle from 0 to 180 degrees
+
         if self.inverse_crime:
             #imgs, maps, masks = load_data_legacy(idx, self.data_file, self.gen_masks)
             imgs, maps, masks, noise, loss_masks = load_data(idx, self.data_file, self.masks_file, self.gen_masks)
@@ -135,7 +143,15 @@ class MultiChannelMRIDataset(torch.utils.data.Dataset):
 
         if not self.noncart:
             maps = fftmod(maps)
-        return imgs, maps, masks, out, loss_masks
+
+        if self.vertical_rotate:
+            imgs = rotate(imgs, rotation_angle, axes=(1, 2), reshape=False)
+            maps = rotate(maps, rotation_angle, axes=(1, 2), reshape=False)
+            masks = rotate(masks, rotation_angle, axes=(1, 2), reshape=False)
+            out = rotate(out, rotation_angle, axes=(1, 2), reshape=False)
+            loss_masks = rotate(loss_masks, rotation_angle, axes=(1, 2), reshape=False)
+
+        return imgs, maps, masks, out, loss_masks, rotation_angle
 
     def _sim_data(self, imgs, maps, masks, noise, ksp=None):
 

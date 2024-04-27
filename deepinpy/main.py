@@ -590,6 +590,14 @@ if __name__ == "__main__":
         help="Logger run id",
         default=None,
     )
+    parser.opt_list(
+        "--vertical_rotate",
+        action="store_true",
+        dest="vertical_rotate",
+        options=[True, False],
+        help="Train with vertical band and then rotation of this band to a random angle",
+        default=False,
+    )
     parser.json_config("--config", default=None)
 
     args = parser.parse_args()

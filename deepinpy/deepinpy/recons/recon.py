@@ -241,6 +241,7 @@ class Recon(pl.LightningModule):
             data_idx=None,
             inverse_crime=self.hparams.inverse_crime,
             noncart=self.hparams.noncart,
+            vertical_rotate = self.hparams.vertical_rotate
         )
         # Validation data.
         self.V = MultiChannelMRIDataset(
@@ -257,6 +258,7 @@ class Recon(pl.LightningModule):
             data_idx=None,
             inverse_crime=self.hparams.inverse_crime,
             noncart=self.hparams.noncart,
+            vertical_rotate = self.hparams.vertical_rotate
         )
 
     def _abs_loss_fun(self, x_hat, imgs):
@@ -381,13 +383,16 @@ class Recon(pl.LightningModule):
         ksp_cc = data["out"]
         mask = data["masks"]
         band_mask = data["loss_masks"]
+        angle = data['rotation_angle']
 
         self.batch(data)
 
         print("------Training Step:")
         print(f"---------------epoch:{self.current_epoch}")
-        print(f"---------------idx:{idx}")
         print(f"---------------training_step:{self.global_step}")
+        print(f"---------------rotation angle:{angle[0]}")
+        print(f"---------------idx:{idx}")
+
         x_hat = self.forward(ksp_cc)
 
         if self.logger and (
