@@ -77,16 +77,16 @@ def main_train(args, gpu_ids=None):
         accelerator = None
     else:
         gpus = gpu_ids
-        accelerator = "ddp"
+        accelerator = "gpu"
     trainer = Trainer(
         max_epochs=args.num_epochs,
-        gpus=gpus,
+        devices=gpus,
         logger=wandb_logger,
         callbacks=[checkpoint_callback],
         accelerator=accelerator,
         accumulate_grad_batches=args.num_accumulate,
-        progress_bar_refresh_rate=-1,
         gradient_clip_val=args.clip_grads,
+        enable_progress_bar=False,
     )
     trainer.fit(M)
 

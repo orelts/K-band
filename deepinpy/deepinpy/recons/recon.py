@@ -125,6 +125,12 @@ class Recon(pl.LightningModule):
         self.W_mask = generate_W_mask(R_band=self.hparams.R_band)
         self.iter = 0
 
+
+    def on_validation_epoch_start(self):
+        super().on_validation_epoch_start()
+        self.val_output_list_nrmse = []
+        self.val_output_list_loss = []
+
     def _init_hparams(self, hparams):
         self.save_hyperparameters(hparams)
 
@@ -354,16 +360,21 @@ class Recon(pl.LightningModule):
         NRMSE = calc_nrmse(band_image_pred, band_image_gt)
         _NRMSE = NRMSE.clone().detach().requires_grad_(False)
 
+        self.val_output_list_loss.append( _loss)
+        self.val_output_list_nrmse.append( _NRMSE)
+ 
+
         return [_loss, _NRMSE]
 
-    def validation_epoch_end(self, batch_parts):
+    def on_validation_epoch_end(self):
         """Logs validation loss and NRMSE to tensorboard. Called automatically by pytorch lightning.
 
         Args:
             batch_parts (Tensor): concatenation of validation_step outputs over all validation data.
         """
-        self.logger.log_metrics({"validation_loss": torch.mean(torch.stack([i[0] for i in batch_parts])), 
-                                 "validation_NRMSE": torch.mean(torch.stack([i[1] for i in batch_parts]))}, step=self.global_step)
+        
+        self.logger.log_metrics({"validation_loss": torch.mean(torch.tensor(self.val_output_list_loss, dtype=float)).item(), 
+                                 "validation_NRMSE": torch.mean(torch.tensor(self.val_output_list_nrmse, dtype=float)).item()}, step=self.global_step)
 
     # FIXME: batch_nb parameter appears unused.
     def training_step(self, batch, batch_nb):

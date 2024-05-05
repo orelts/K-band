@@ -117,14 +117,22 @@ class MultiChannelMRIDataset(torch.utils.data.Dataset):
 
     def _load_data(self, idx):
         
-        # rotation_angle = random.randint(0, 180)  # Randomly choose an angle from 0 to 180 degrees
-        rotation_angle = 90  # Randomly choose an angle from 0 to 180 degrees
+        rotation_angle = np.random.randint(0, 180)  # Randomly choose an angle from 0 to 180 degrees
 
         if self.inverse_crime:
             #imgs, maps, masks = load_data_legacy(idx, self.data_file, self.gen_masks)
             imgs, maps, masks, noise, loss_masks = load_data(idx, self.data_file, self.masks_file, self.gen_masks)
         else:
             imgs, maps, masks, ksp, noise, loss_masks = load_data_ksp(idx, self.data_file, self.masks_file, self.gen_masks)
+
+        
+        if self.vertical_rotate:
+            imgs = rotate(imgs, rotation_angle, axes=(1, 2), reshape=False)
+            maps = rotate(maps, rotation_angle, axes=(1, 2), reshape=False)
+            masks = rotate(masks, rotation_angle, axes=(1, 2), reshape=False)
+            ksp = rotate(ksp, rotation_angle, axes=(1, 2), reshape=False)
+            loss_masks = rotate(loss_masks, rotation_angle, axes=(1, 2), reshape=False)
+
         if self.scale_data:
             ## FIXME: batch mode
             assert not self.scale_data, 'SEE FIXME'
@@ -144,12 +152,7 @@ class MultiChannelMRIDataset(torch.utils.data.Dataset):
         if not self.noncart:
             maps = fftmod(maps)
 
-        if self.vertical_rotate:
-            imgs = rotate(imgs, rotation_angle, axes=(1, 2), reshape=False)
-            maps = rotate(maps, rotation_angle, axes=(1, 2), reshape=False)
-            masks = rotate(masks, rotation_angle, axes=(1, 2), reshape=False)
-            out = rotate(out, rotation_angle, axes=(1, 2), reshape=False)
-            loss_masks = rotate(loss_masks, rotation_angle, axes=(1, 2), reshape=False)
+
 
         return imgs, maps, masks, out, loss_masks, rotation_angle
 
@@ -201,7 +204,7 @@ def load_data(idx, data_file, masks_file, gen_masks=False):
             noise = noise[None,...]
     return imgs, maps, masks, noise, loss_masks
 
-def load_data_ksp(idx, data_file, masks_file, gen_masks=False):
+def load_data_ksp(idx, data_file, masks_file, gen_masks=False, vertical_rotate=False):
     with h5py.File(data_file, 'r') as F:
         imgs = np.array(F['imgs'][idx,...], dtype=np.complex)
         maps = np.array(F['maps'][idx,...], dtype=np.complex)
@@ -220,6 +223,7 @@ def load_data_ksp(idx, data_file, masks_file, gen_masks=False):
         imgs, maps, masks, ksp, loss_masks = imgs[None,...], maps[None,...], masks[None,...], ksp[None,...], loss_masks[None,...]
         if noise is not None:
             noise = noise[None,...]
+
     return imgs, maps, masks, ksp, noise, loss_masks
 
 
