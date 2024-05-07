@@ -127,10 +127,8 @@ class MultiChannelMRIDataset(torch.utils.data.Dataset):
 
         
         if self.vertical_rotate:
+            # Rotate for loss function consistency
             imgs = rotate(imgs, rotation_angle, axes=(1, 2), reshape=False)
-            maps = rotate(maps, rotation_angle, axes=(1, 2), reshape=False)
-            masks = rotate(masks, rotation_angle, axes=(1, 2), reshape=False)
-            ksp = rotate(ksp, rotation_angle, axes=(1, 2), reshape=False)
             loss_masks = rotate(loss_masks, rotation_angle, axes=(1, 2), reshape=False)
 
         if self.scale_data:
@@ -152,7 +150,9 @@ class MultiChannelMRIDataset(torch.utils.data.Dataset):
         if not self.noncart:
             maps = fftmod(maps)
 
-
+        if self.vertical_rotate:
+            # Rotate for loss function consistency. Operator A is the same with maps and masks for the vertical case (not rotated)
+            out = rotate(out, rotation_angle, axes=(1, 2), reshape=False)
 
         return imgs, maps, masks, out, loss_masks, rotation_angle
 
